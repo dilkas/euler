@@ -1,7 +1,7 @@
 ; A constant, basically just a guess how many digits we'll need
-(define number-of-digits 6)
+(define number-of-digits 5)
 ; How many primes in a group we need (later change to 8)
-(define value 8)
+(define value 7)
 ; Size of the vector so that every considerable prime could be an index
 (define vector-size (expt 10 number-of-digits))
 ; Vector to check for primality
@@ -39,21 +39,20 @@
 
 ; Adds d as the first element to every list in l
 (define (helper d l)
-  (map (lambda (x) (cons d x)) l))
+  (map (lambda (x) (cons d x)) l)))
 
 ; Generates all possible masks based on n by
-; replacing all subsets of d by -1
+; 'nulling' all possible subsets of the digit d
 (define (main-generator n d)
-  (let ((first (car n)))
-    (if (= (length n) 1)
-        (if (= first d)
-            (list (list -1) (list d))
-            (list n))
-        (let* ((recursive-tail (main-generator (cdr n) d))
-               (not-masked (helper first recursive-tail)))
-          (if (= first d)
-              (append not-masked (helper -1 recursive-tail))
-              not-masked)))))
+  (if (= (length n) 1)
+      (if (= (car n) d)
+          (list (list -1) (list d))
+          (list n))
+      (let* ((recursive-tail (main-generator (cdr n) d))
+             (not-masked (helper (car n) recursive-tail)))
+        (if (= (car n) d)
+            (append not-masked (helper -1 recursive-tail))
+            not-masked))))
 
 ; Returns a list of all possible masks for n, d = 0
 (define (generate-masks n d)
@@ -76,14 +75,11 @@
 	x))
   (map change-digit m))
 
-(define (not-a-mask? m)
-  (not (find (lambda (x) (= x -1)) m)))
-
-; A helper function for evaluate-mask
+; Returns how many primes correspond to mask m
 (define (count-primes m d)
-  (cond ((not-a-mask? m) (prime? m))
-        ((> d 9) 0)
-        (#t (+ (count-primes m (+ d 1)) (prime? (evaluate m d))))))
+  (if (> d 9)
+      0
+      (+ (count-primes m (+ d 1)) (prime? (evaluate m d)))))
 
 ; Returns the number of primes satisfying the mask
 (define (evaluate-mask m)
@@ -104,4 +100,4 @@
 
 (define (euler51)
   (outer-sieve 2)
-  (go-through-numbers (expt 10 (- number-of-digits 1))))
+  (go-through-numbers (expt 10 number-of-digits)))
