@@ -1,91 +1,94 @@
-(define following (make-hash-table))
-
-
+; keys - numbers from 1 to 6, that represent different types - 2 (makes
+; further calculations easier)
+; values - lists (P, n) where:
+; P - the first four-digit number of that type
+; n - its index in the sequence (required for calculations)
 (define starts (make-hash-table))
 
+; for each number stores a list of numbers that can go after that number
+(define following (make-hash-table))
 
-(define (setup-starts)
-  (let ((a (hash-table-set! starts 1 '(1035 45)))
-	(b (hash-table-set! starts 2 '(1024 32)))
-	(c (hash-table-set! starts 3 '(1001 26)))
-	(d (hash-table-set! starts 4 '(1035 23)))
-	(e (hash-table-set! starts 5 '(1071 21)))
-	(f (hash-table-set! starts 6 '(1045 19))))
-    1))
-
-
+; p - the first number (as int)
+; n - its index
+; type - its type-2
 (define (generate-numbers-of-type p n type)
   (if (< p 10000)
-      (cons (cons p (list type)) (generate-numbers-of-type (+ p (* type n) 1) (+ n 1) type))
+      (cons (list p (+ type 2))
+            (generate-numbers-of-type (+ p (* type n) 1) (+ n 1) type))
       '()))
 
-
+; call with type = 1 to generate all considerable numbers
 (define (generate-all-numbers type)
   (if (< type 7)
       (let ((start (hash-table-ref starts type)))
-	(append (generate-numbers-of-type (car start) (cadr start) type)
-		(generate-all-numbers (+ type 1))))
+        (append (generate-numbers-of-type (car start) (cadr start) type)
+                (generate-all-numbers (+ type 1))))
       '()))
-
-
-(define (add-following a b)
-  (if (and (equal? (remainder (car a) 100) (/ (car b) 100))
-	   (not (equal? (cdr a) (cdr b))))
-      (if (hash-table-exists? following a)
-	  (hash-table-set! following a (cons b (hash-table-ref following a)))
-	  (hash-table-set! following a (list b)))
-      '()))
-
-
-(define (add-to-following e l t)
-  (if (null? l)
-      '()
-      (add-to-following e (cdr l) (add-following e (car l)))))
-
-
-(define (different-types? a b)
-  (not (equal? (cdr a) (cdr b))))
-
 
 (define (cycle? a b)
-  (equal? (remainder (car a) 100) (/ (car b) 100)))
+  (equal? (remainder (car a) 100) (quotient (car b) 100)))
 
+(define (different-types? a b)
+  (not (equal? (cadr a) (cadr b))))
 
 (define (all-types-different? e l)
   (if (null? l)
       #t
       (and (different-types? e (car l))
-	   (all-types-different? e (cdr l)))))
+           (all-types-different? e (cdr l)))))
 
+(define (add-following a b)
+  (if (and (cycle? a b)
+           (different-types? a b))
+      (hash-table-set! following a
+                       (cons b (hash-table-ref following a list)))))
 
-(define (acceptable e l)
-  (and (cycle? e (car l))
-       (all-types-different e l)))
+(define (add-to-following e l)
+  (for-each (lambda (x)
+              (add-following e x))
+            l))
 
+(define (consider candidates set)
+  (let ((candidate (car candidates))
+        (last (car set)))
+    (if (and (cycle? last candidate)
+             (all-types-different? candidate set))
+        (let ((possibility (find-next-number
+                            (hash-table-ref following candidate list)
+                            (cons candidate set))))
+          (if (null? possibility)
+              (find-next-number (cdr candidates) set)
+              possibility))
+        (find-next-number (cdr candidates) set))))
 
-(define (magic l f t)
+(define (find-next-number candidates set)
+  (cond ((and (equal? (length set) 6)
+              (cycle? (car set) (last set)))
+         set)
+        ((null? candidates) '())
+        (else (consider candidates set))))
+
+; for each element e in list l:
+;   if we find a set starting with e, return it
+(define (consider-starting-numbers l)
   (if (null? l)
       '()
-      (magic (cdr l) f (add-to-following (car l) f t))))
-
-
-(define (even-more-magic l p)
-  (if (null? l)
-      l
-      (let ((s (car l)) (e (car p)))
-	(if (acceptable e s p)
-	    (even-more-magic (hash-table-ref following s) (cons s p))
-	    (even-more-magic (cdr l) p)))))
-
-
-(define (more-magic l t)
-  (let* ((e (car l))
-	 (r (even-more-magic (hash-table-ref following e) (list e))))
-    (if (null? r)
-	(more-magic (cdr l) t)
-	r))
-
+      (let* ((e (car l))
+             (r (find-next-number (hash-table-ref following e) (list e))))
+        (if (null? r)
+            (consider-starting-numbers (cdr l))
+            r))))
 
 (define (euler61)
-  (let ((numbers (generate-all-numbers (setup-starts))))
-    (more-magic (hash-table-keys following) (magic numbers numbers '()))))
+  (hash-table-set! starts 1 '(1035 45))
+	(hash-table-set! starts 2 '(1024 32))
+	(hash-table-set! starts 3 '(1001 26))
+	(hash-table-set! starts 4 '(1035 23))
+	(hash-table-set! starts 5 '(1071 21))
+	(hash-table-set! starts 6 '(1045 19))
+  (let ((numbers (generate-all-numbers 1)))
+    (for-each (lambda (x)
+                (add-to-following x numbers))
+              numbers)
+    (apply + (map car (consider-starting-numbers
+                       (hash-table-keys following))))))
