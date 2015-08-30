@@ -1,0 +1,7 @@
+f = open('p089_roman.txt')
+original = f.read()
+f.close()
+optimized = original.replace('DCCCC', 'CM').replace('CCCC', 'CD')
+optimized = optimized.replace('LXXXX', 'XC').replace('XXXX', 'XL')
+optimized = optimized.replace('VIIII', 'IX').replace('IIII', 'IV')
+print len(original) - len(optimized)
